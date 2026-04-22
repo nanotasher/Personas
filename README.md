@@ -17,7 +17,7 @@ specific personas. Individual personas depend on this repo.
 
 ### 1. Start shared infrastructure
 ```bash
-cd /mnt/c/Projects/Personas
+cd Personas
 cd infrastructure
 cp .env.example .env        # fill in secrets
 docker compose up -d
@@ -25,7 +25,8 @@ docker compose up -d
 
 ### 2. Create a new persona
 ```bash
-# In inner-sanctum-personas repo:
+# In Council repo:
+cd Council
 cp -r ../Personas/template personas/persona-id
 cd personas/persona-id
 # Edit SOUL.md, AGENTS.md, persona.json
@@ -33,7 +34,7 @@ cd personas/persona-id
 
 ### 3. Deploy a persona
 ```bash
-cd /mnt/c/Projects/Personas
+cd Personas
 ./scripts/deploy-persona.sh ../Council/personas/persona-id
 ```
 
