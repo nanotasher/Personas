@@ -1,0 +1,96 @@
+# inner-sanctum-infra — Shared Services
+#
+# This Compose file defines all infrastructure shared across personas:
+#   - PostgreSQL: persona databases, audit log, health, memory
+#   - vLLM: local model inference server (Qwen2.5-14B-Instruct-GPTQ-Int4)
+#
+# Personas each have their own Compose file that connects to this network.
+# Start this stack first before starting any persona.
+#
+# Usage:
+#   cp .env.example .env    # fill in secrets
+#   docker compose up -d
+
+services:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # PostgreSQL — shared database instance
+  # Each persona gets its own schema. Audit log and health tables are shared.
+  # ─────────────────────────────────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16   # pgvector extension pre-installed for future semantic search
+    container_name: sanctum_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: sanctum
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"             # localhost only — not exposed externally
+    networks:
+      - sanctum-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d sanctum"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # vLLM — local model inference server
+  # Exposes an OpenAI-compatible API on port 8000.
+  # All personas can point their Hermes config at http://vllm:8000/v1.
+  # Model: Qwen2.5-14B-Instruct-GPTQ-Int4 (fits in 12GB VRAM)
+  # ─────────────────────────────────────────────────────────────────────────
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: sanctum_vllm
+    restart: unless-stopped
+    runtime: nvidia                 # requires nvidia-container-toolkit on host
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN}   # required to pull gated models
+    command: >
+      --model Qwen/Qwen2.5-14B-Instruct-GPTQ-Int4
+      --quantization gptq
+      --dtype float16
+      --max-model-len 8192
+      --gpu-memory-utilization 0.85
+      --host 0.0.0.0
+      --port 8000
+    volumes:
+      - vllm_cache:/root/.cache/huggingface   # cache model weights across restarts
+    ports:
+      - "8000:8000"
+    networks:
+      - sanctum-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s            # vLLM takes time to load model weights
+
+volumes:
+  postgres_data:
+    driver: local
+  vllm_cache:
+    driver: local
+
+networks:
+  sanctum-net:
+    name: sanctum-net
+    driver: bridge
+    # Personas attach to this network by name in their own Compose files:
+    # networks:
+    #   sanctum-net:
+    #     external: true

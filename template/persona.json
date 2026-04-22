@@ -1,0 +1,148 @@
+{
+  // ── Identity ────────────────────────────────────────────────────────────────
+  // These fields identify the persona. id must be lowercase, no spaces.
+  // version follows semver: patch = tuning, minor = new tools, major = breaking change.
+  // status: "planned" | "active" | "deprecated"
+
+  "id": "persona-id",
+  "name": "PERSONA NAME",
+  "version": "1.0.0",
+  "status": "planned",
+  "domain": "One sentence describing what this persona does",
+  "description": "Slightly longer description — what it monitors, produces, or decides.",
+
+  // ── Trust Level ─────────────────────────────────────────────────────────────
+  // Trust level controls what the persona is permitted to do autonomously.
+  // See docs/persona-spec.md for the full trust level definitions.
+  //
+  // Level 1 — Advisor:   Read-only. Observes, analyzes, recommends. Never acts.
+  // Level 2 — Operator:  May call tools with side effects (email, write to DB).
+  //                      Cannot initiate financial transactions.
+  // Level 3 — Executor:  May execute consequential actions (trades, orders).
+  //                      Must log intent before every execution.
+  // Level 4 — Architect: Reserved. Requires explicit Nathan approval per action.
+
+  "trust_level": 1,
+  "trust_label": "Advisor",
+
+  // ── Model Provider ──────────────────────────────────────────────────────────
+  // primary: the main model this persona uses. type: "anthropic" | "openai" | "vllm"
+  // local: the vLLM instance (always Qwen2.5-14B-Instruct-GPTQ-Int4 in v1)
+  // routing: "primary" uses the primary model for all tasks.
+  //          "local" routes to vLLM instead (use for low-latency, non-critical tasks).
+  //
+  // Model guidance:
+  //   Claude Opus  → deep reasoning, complex judgment (NORA, JOE)
+  //   Claude Sonnet → general purpose, good cost/quality balance (AMI, VINCE)
+  //   o3           → structured quantitative reasoning (QUENTIN, ALPHA)
+  //   Qwen local   → fast pre-screening, classification, lightweight tasks
+
+  "model_provider": {
+    "primary": {
+      "type": "anthropic",
+      "model": "claude-sonnet-4-20250514"
+    },
+    "local": {
+      "type": "vllm",
+      "base_url": "http://vllm:8000/v1",
+      "model": "Qwen/Qwen2.5-14B-Instruct-GPTQ-Int4"
+    },
+    "routing": "primary"
+  },
+
+  // ── Compute ─────────────────────────────────────────────────────────────────
+  // Controls GPU allocation for this persona.
+  // inference: "api" (no local GPU needed) | "local-gpu" | "local-cpu"
+  // stt/tts: "none" for MVP. Future: "gpu" | "elevenlabs" | "local"
+  // skills.acceleration: "none" | "auto" (use GPU if available, CPU fallback) | "force"
+
+  "compute": {
+    "inference": "api",
+    "stt": "none",
+    "tts": "none",
+    "skills": {
+      "acceleration": "none",
+      "device": null
+    }
+  },
+
+  // ── Voice ───────────────────────────────────────────────────────────────────
+  // All voice features are disabled at MVP. Set enabled: true when ready.
+  // tts_voice_id: ElevenLabs voice ID string (e.g. "serafina")
+  // streaming: true enables streaming TTS for lower latency
+
+  "voice": {
+    "enabled": false,
+    "stt_provider": null,
+    "tts_provider": null,
+    "tts_voice_id": null,
+    "streaming": false
+  },
+
+  // ── Memory ──────────────────────────────────────────────────────────────────
+  // short_term: in-process context window (always true)
+  // medium_term: summaries and decisions persisted in PostgreSQL (persona_memory table)
+  // long_term: vector/semantic search — deferred to walk phase (always false for now)
+
+  "memory": {
+    "short_term": true,
+    "medium_term": true,
+    "long_term": false
+  },
+
+  // ── Toolsets ─────────────────────────────────────────────────────────────────
+  // List only the toolsets this persona is permitted to use.
+  // Available shared toolsets:
+  //   inner-sanctum-audit    → write to shared audit log
+  //   inner-sanctum-email    → send email via Resend
+  //   inner-sanctum-goals    → read/write goals table
+  //   inner-sanctum-alerts   → send out-of-band alerts to Nathan
+  // Persona-specific toolsets (e.g. plaid-accounts, alpaca-trading) are
+  // defined in the persona's own MCP server configuration.
+
+  "toolsets": [
+    "inner-sanctum-audit"
+  ],
+
+  // ── Scheduler ───────────────────────────────────────────────────────────────
+  // enabled: true if this persona has scheduled jobs
+  // jobs_file: path to the APScheduler jobs definition (relative to persona dir)
+
+  "schedule": {
+    "enabled": false,
+    "jobs_file": "scheduler/jobs.py"
+  },
+
+  // ── Health / Liveness ────────────────────────────────────────────────────────
+  // heartbeat_interval_seconds: how often the persona writes a health row
+  // alert_on_missed_heartbeats: how many consecutive missed heartbeats trigger an alert
+  // Use shorter intervals for personas with time-sensitive responsibilities (e.g. QUENTIN)
+
+  "health": {
+    "heartbeat_interval_seconds": 60,
+    "alert_on_missed_heartbeats": 3
+  },
+
+  // ── Audit ────────────────────────────────────────────────────────────────────
+  // log_target: "shared" — all personas write to the shared audit_log table
+  // log_every_tool_call: true = every MCP tool call gets an audit entry
+  // Additional per-persona log flags can be added here (e.g. log_every_trade)
+
+  "audit": {
+    "enabled": true,
+    "log_target": "shared",
+    "log_every_tool_call": true
+  },
+
+  // ── Deployment ───────────────────────────────────────────────────────────────
+  // hermes_home: where deploy-persona.sh writes the Hermes profile for this persona
+  // compose_file: the persona's own docker-compose.yml (if it has persona-specific services)
+  // port: reserved for future gateway routing. Each persona gets a unique port.
+  //   NORA: 8010 | AMI: 8020 | QUENTIN: 8030 | ALPHA: 8040 | VINCE: 8050 | JOE: 8060
+
+  "deployment": {
+    "hermes_home": "/sanctum/personas/PERSONA-ID/.hermes",
+    "compose_file": "docker-compose.yml",
+    "port": 8000
+  }
+}
