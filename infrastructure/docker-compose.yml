@@ -1,8 +1,8 @@
-# inner-sanctum-infra — Shared Services
+# Persona Shared Services
 #
-# This Compose file defines all infrastructure shared across personas:
-#   - PostgreSQL: persona databases, audit log, health, memory
-#   - vLLM: local model inference server (Qwen2.5-14B-Instruct-GPTQ-Int4)
+# This Compose file defines all infrastructure shared across Personas:
+#   - PostgreSQL: Persona databases, audit log, health, memory
+#   - vLLM: local model inference server (ie: Qwen2.5-14B-Instruct-GPTQ-Int4)
 #
 # Personas each have their own Compose file that connects to this network.
 # Start this stack first before starting any persona.
@@ -19,21 +19,21 @@ services:
   # ─────────────────────────────────────────────────────────────────────────
   postgres:
     image: pgvector/pgvector:pg16   # pgvector extension pre-installed for future semantic search
-    container_name: sanctum_postgres
+    container_name: persona_postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: sanctum
+      POSTGRES_DB: persona
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "5432:5432"             # localhost only — not exposed externally
     networks:
-      - sanctum-net
+      - persona-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d sanctum"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d persona"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -46,7 +46,7 @@ services:
   # ─────────────────────────────────────────────────────────────────────────
   vllm:
     image: vllm/vllm-openai:latest
-    container_name: sanctum_vllm
+    container_name: persona_vllm
     restart: unless-stopped
     runtime: nvidia                 # requires nvidia-container-toolkit on host
     environment:
@@ -65,7 +65,7 @@ services:
     ports:
       - "8000:8000"
     networks:
-      - sanctum-net
+      - persona-net
     deploy:
       resources:
         reservations:
@@ -87,10 +87,10 @@ volumes:
     driver: local
 
 networks:
-  sanctum-net:
-    name: sanctum-net
+  persona-net:
+    name: persona-net
     driver: bridge
     # Personas attach to this network by name in their own Compose files:
     # networks:
-    #   sanctum-net:
+    #   persona-net:
     #     external: true
