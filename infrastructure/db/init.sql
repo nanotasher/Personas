@@ -1,7 +1,7 @@
--- inner-sanctum shared schema
+-- Persona shared schema
 -- Runs once on first PostgreSQL startup via docker-entrypoint-initdb.d
 -- Creates shared tables used by all personas.
--- Each persona additionally has its own schema (created by deploy-persona.sh).
+-- Each Persona additionally has its own schema (created by deploy-persona.sh).
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Extensions
