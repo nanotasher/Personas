@@ -8,7 +8,7 @@
 #   ./scripts/deploy-persona.sh <path-to-persona-directory>
 #
 # Example:
-#   ./scripts/deploy-persona.sh ../inner-sanctum-personas/personas/nora
+#   ./scripts/deploy-persona.sh ../Council/personas/nora
 #
 # What this script does:
 #   1. Validates persona.json exists and is well-formed
@@ -184,11 +184,11 @@ if [[ -f "$INFRA_ENV" ]]; then
     source "$INFRA_ENV"
 fi
 
-PGUSER="${POSTGRES_USER:-sanctum}"
+PGUSER="${POSTGRES_USER:-}"
 PGPASSWORD="${POSTGRES_PASSWORD:-}"
 PGHOST="${POSTGRES_HOST:-localhost}"
 PGPORT="${POSTGRES_PORT:-5432}"
-PGDB="${POSTGRES_DB:-sanctum}"
+PGDB="${POSTGRES_DB:-persona}"
 
 if command -v psql &>/dev/null; then
     PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDB" <<SQL
